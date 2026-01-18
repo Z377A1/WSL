@@ -1,0 +1,24 @@
+sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
+
+// Ubuntu
+0       /dev
+0       /proc
+0       /sys
+4.0K    /bin.usr-is-merged
+4.0K    /boot
+4.0K    /lib.usr-is-merged
+4.0K    /media
+4.0K    /sbin.usr-is-merged
+4.0K    /srv
+8.0K    /Docker
+16K     /lost+found
+84K     /tmp
+940K    /run
+5.2M    /etc
+9.5M    /root
+3.2G    /home
+3.4G    /var
+4.2G    /snap
+5.8G    /usr
+12G     /opt
+29G     /

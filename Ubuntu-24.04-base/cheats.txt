@@ -1,0 +1,5 @@
+Optimize-VHD -path .\ext4.vhdx
+
+wsl --export Ubuntu-24.04-base .\Ubuntu-24.04-base.tar.gz
+
+wsl --import Ubuntu-24.04-base .\ .\Ubuntu-24.04-base.tar.gz

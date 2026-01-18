@@ -1,0 +1,5 @@
+Optimize-VHD -path .\ext4.vhdx
+
+wsl --export AlmaLinux-10-base .\AlmaLinux-10-base.tar.gz
+
+wsl --import AlmaLinux-10-base .\ .\AlmaLinux-10-base.tar.gz

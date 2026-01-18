@@ -1,0 +1,5 @@
+Optimize-VHD -path .\ext4.vhdx
+
+wsl --export Debian-12-base .\Debian-12-base.tar.gz
+
+wsl --import Debian-12-base .\ .\Debian-12-base.tar.gz

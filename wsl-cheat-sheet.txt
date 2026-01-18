@@ -1,0 +1,78 @@
+wsl --install --from-file <>.wsl --name <> --location <>
+
+--install [Distro] [Options...]
+        Install a Windows Subsystem for Linux distribution.
+        For a list of valid distributions, use 'wsl.exe --list --online'.
+
+        Options:
+            --enable-wsl1
+                Enable WSL1 support.
+
+            --fixed-vhd
+                Create a fixed-size disk to store the distribution.
+
+            --from-file <Path>
+                Install a distribution from a local file.
+
+            --legacy
+                Use the legacy distribution manifest.
+
+            --location <Location>
+                Set the install path for the distribution.
+
+            --name <Name>
+                Set the name of the distribution.
+
+            --no-distribution
+                Only install the required optional components, does not install a distribution.
+
+            --no-launch, -n
+                Do not launch the distribution after install.
+
+            --version <Version>
+                Specifies the version to use for the new distribution.
+
+            --vhd-size <MemoryString>
+                Specifies the size of the disk to store the distribution.
+
+            --web-download
+                Download the distribution from the internet instead of the Microsoft Store.
+
+--set-default, -s <Distro>
+        Sets the distribution as the default.
+
+--export <Distro> <FileName> [Options]
+        Exports the distribution to a tar file.
+        The filename can be - for stdout.
+
+        Options:
+            --format <Format>
+                Specifies the export format. Supported values: tar, tar.gz, tar.xz, vhd.
+
+--import <Distro> <InstallLocation> <FileName> [Options]
+        Imports the specified tar file as a new distribution.
+        The filename can be - for stdin.
+
+        Options:
+            --version <Version>
+                Specifies the version to use for the new distribution.
+
+            --vhd
+                Specifies that the provided file is a .vhdx file, not a tar file.
+                This operation makes a copy of the .vhdx file at the specified install location.
+
+--manage <Distro> <Options...>
+        Changes distro specific options.
+
+        Options:
+            --move <Location>
+                Move the distribution to a new location.
+
+            --set-sparse, -s <true|false>
+                Set the vhdx of distro to be sparse, allowing disk space to be automatically reclaimed.
+
+            --set-default-user <Username>
+                Set the default user of the distribution.
+
+            --resize <MemoryString>
+                Resize the disk of the distribution to the specified size.

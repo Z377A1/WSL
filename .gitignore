@@ -1,0 +1,15 @@
+# tars and compressed files
+*.tar
+*.tar.*
+
+# wsl files
+*.wsl
+
+# ico files
+*.ico
+
+# vhdx files
+*.vhdx
+
+# Ubuntu
+Ubuntu/
