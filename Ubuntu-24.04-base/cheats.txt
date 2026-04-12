@@ -1,3 +1,7 @@
+https://releases.ubuntu.com/noble/
+
+wsl --install --from-file <>.wsl --name Ubuntu-24.04-base --location .\
+
 Optimize-VHD -path .\ext4.vhdx
 
 wsl --export Ubuntu-24.04-base .\Ubuntu-24.04-base.tar.gz
