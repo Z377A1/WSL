@@ -1,9 +1,0 @@
-https://releases.ubuntu.com/resolute/
-
-wsl --install --from-file <>.wsl --name Ubuntu-26.04-base --location .\
-
-Optimize-VHD -path .\ext4.vhdx
-
-wsl --export Ubuntu-26.04-base .\Ubuntu-26.04-base.tar.gz
-
-wsl --import Ubuntu-26.04-base .\ .\Ubuntu-26.04-base.tar.gz

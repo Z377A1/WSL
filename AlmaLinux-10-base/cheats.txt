@@ -1,9 +1,0 @@
-https://almalinux.org/get-almalinux/#WSL-x86_64-10
-
-wsl --install --from-file <>.wsl --name AlmaLinux-10-base --location .\
-
-Optimize-VHD -path .\ext4.vhdx
-
-wsl --export AlmaLinux-10-base .\AlmaLinux-10-base.tar.gz
-
-wsl --import AlmaLinux-10-base .\ .\AlmaLinux-10-base.tar.gz

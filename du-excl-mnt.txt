@@ -1,6 +1,8 @@
-sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
+run inside WSL instance for storage management
 
 // Ubuntu
+sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
+
 0       /dev
 0       /proc
 0       /sys
