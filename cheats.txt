@@ -1,0 +1,132 @@
+# ==============================================================================
+# WSL VM Administration Cheatsheet
+# Custom Distributions & Local Virtual Machine Storage (. \VMs\<Name>)
+# Examples: Ubuntu-rust, Debian-go, Arch-dev
+# ==============================================================================
+
+# Official Distro Releases & Rootfs Archives:
+# Ubuntu: https://releases.ubuntu.com
+# Debian: https://www.debian.org/distrib
+# Arch:   https://geo.mirror.pkgbuild.com/images/
+
+# ------------------------------------------------------------------------------
+# 1. WSL Status & Listing
+# ------------------------------------------------------------------------------
+# Check installed distributions, version, and running state
+wsl -l -v
+wsl --list --verbose
+
+# Check available online distributions
+wsl --list --online
+
+# Check WSL kernel and version info
+wsl --version
+wsl --status
+
+
+# ------------------------------------------------------------------------------
+# 2. Installing Distributions with Custom Names & Location
+# ------------------------------------------------------------------------------
+# Install online distribution with custom instance name directly into VMs folder
+wsl --install Ubuntu-24.04 --name Ubuntu-rust --location .\VMs\Ubuntu-rust
+wsl --install Debian --name Debian-go --location .\VMs\Debian-go
+
+# Install from a local .wsl package file into VMs folder
+wsl --install --from-file .\VMs\Ubuntu.wsl --name Ubuntu-rust --location .\VMs\Ubuntu-rust
+
+
+# ------------------------------------------------------------------------------
+# 3. Exporting & Backup
+# ------------------------------------------------------------------------------
+# Export running or stopped distribution to a tarball archive inside VMs\
+wsl --export Ubuntu-rust .\VMs\Ubuntu-rust.tar
+wsl --export Debian-go .\VMs\Debian-go.tar.gz
+
+# Export distribution directly as a VHDX virtual disk image
+wsl --export Ubuntu-rust .\VMs\Ubuntu-rust.vhdx --vhd
+
+
+# ------------------------------------------------------------------------------
+# 4. Importing Distributions into VMs\
+# ------------------------------------------------------------------------------
+# Import from a tarball archive into a dedicated VMs subfolder (WSL 2)
+wsl --import Ubuntu-rust .\VMs\Ubuntu-rust .\VMs\Ubuntu-rust.tar --version 2
+wsl --import Debian-go .\VMs\Debian-go .\VMs\Debian-go.tar.gz --version 2
+
+# Import from a VHD / VHDX virtual disk image into a dedicated VMs folder
+wsl --import Ubuntu-rust .\VMs\Ubuntu-rust .\VMs\Ubuntu-rust.vhdx --vhd
+
+# In-place VHDX import (registers an existing ext4.vhdx without copying)
+wsl --import-in-place Ubuntu-rust .\VMs\Ubuntu-rust\ext4.vhdx
+
+
+# ------------------------------------------------------------------------------
+# 5. Running & Managing Lifecycle
+# ------------------------------------------------------------------------------
+# Launch a specific distribution
+wsl -d Ubuntu-rust
+wsl -d Debian-go
+
+# Launch as a specific user
+wsl -d Ubuntu-rust -u <username>
+
+# Terminate a running distribution
+wsl -t Ubuntu-rust
+wsl --terminate Debian-go
+
+# Shutdown all running WSL distributions
+wsl --shutdown
+
+# Set default distribution
+wsl -s Ubuntu-rust
+wsl --set-default Ubuntu-rust
+
+# Set default user for a distribution (WSL 2.0+)
+wsl --manage Ubuntu-rust --set-default-user <username>
+
+
+# ------------------------------------------------------------------------------
+# 6. Unregistering / Deleting a Distribution
+# ------------------------------------------------------------------------------
+# WARNING: Permanently deletes distro registration and internal filesystem
+wsl --unregister Ubuntu-rust
+wsl --unregister Debian-go
+
+# Optional: remove the directory inside VMs\
+# rmdir /s /q .\VMs\Ubuntu-rust
+
+
+# ------------------------------------------------------------------------------
+# 7. VHDX Disk Optimization & Compacting (Shrink Disk Size)
+# ------------------------------------------------------------------------------
+# Step 1: Terminate WSL instance before optimizing
+wsl --terminate Ubuntu-rust
+wsl --shutdown
+
+# Step 2a: Optimize using PowerShell Hyper-V Module (Run PowerShell as Admin)
+Optimize-VHD -Path .\VMs\Ubuntu-rust\ext4.vhdx -Mode Full
+
+# Step 2b: Optimize using diskpart (Works on all Windows editions)
+# In CMD / PowerShell:
+# diskpart
+# select vdisk file="D:\Virtual Environments\WSL\VMs\Ubuntu-rust\ext4.vhdx"
+# attach vdisk readonly
+# compact vdisk
+# detach vdisk
+
+# Step 2c: Enable sparse VHD in modern WSL (Automatic disk reclaiming)
+wsl --manage Ubuntu-rust --set-sparse true
+
+
+# ------------------------------------------------------------------------------
+# 8. Storage Analysis (Run inside Linux instance)
+# ------------------------------------------------------------------------------
+# Inspect disk usage breakdown excluding host /mnt mounts
+sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
+
+
+# ------------------------------------------------------------------------------
+# 9. Get Exact Registered BasePath of Distros (PowerShell)
+# ------------------------------------------------------------------------------
+Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss\*" | 
+    Select-Object DistributionName, BasePath

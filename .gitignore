@@ -1,12 +1,24 @@
-# tars and compressed files
+# Archives & compressed exports
 *.tar
 *.tar.*
+*.gz
+*.zip
+*.7z
+*.xz
 
-# wsl files
+# WSL distribution & package files
 *.wsl
 
-# ico files
+# Virtual disk images
+*.vhdx
+*.vhd
+
+# Shortcut & Icon assets
 *.ico
 
-# vhdx files
-*.vhdx
+# VM Instances & Virtual Disks (track folder structure with .gitkeep)
+/VMs/*
+!/VMs/.gitkeep
+
+# Standalone Ubuntu directory
+/Ubuntu/
