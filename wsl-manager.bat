@@ -139,9 +139,11 @@ wsl.exe --list --online
 echo.
 echo ===============================================================================
 set /p "BASE_DISTRO=Enter base distribution NAME (e.g. Ubuntu-24.04, Debian, Kali-linux, or blank to cancel): "
+call :TRIM BASE_DISTRO
 if "%BASE_DISTRO%"=="" goto MAIN_MENU
 
 set /p "CUSTOM_NAME=Enter custom instance NAME (e.g. Ubuntu-rust, Debian-go, or press Enter for '%BASE_DISTRO%'): "
+call :TRIM CUSTOM_NAME
 if "%CUSTOM_NAME%"=="" set "CUSTOM_NAME=%BASE_DISTRO%"
 
 set "TARGET_LOC=%VM_DIR%\%CUSTOM_NAME%"
@@ -176,6 +178,7 @@ echo  Available .wsl packages in %VM_DIR%:
 dir /b "%VM_DIR%\*.wsl" 2>nul
 echo.
 set /p "WSL_FILE=Enter .wsl filename in VMs\ (or full path, or blank to cancel): "
+call :TRIM WSL_FILE
 if "%WSL_FILE%"=="" goto MAIN_MENU
 
 :: Resolve relative path
@@ -191,6 +194,7 @@ if not exist "%WSL_FILE%" (
 )
 
 set /p "CUSTOM_NAME=Enter custom instance NAME (e.g. Ubuntu-rust, Debian-go): "
+call :TRIM CUSTOM_NAME
 if "%CUSTOM_NAME%"=="" (
     echo [ERROR] Distribution name cannot be empty.
     pause
@@ -233,6 +237,7 @@ if %ERRORLEVEL% neq 0 echo   - No .tar, .tar.gz, or .vhdx files found in VMs\
 echo -------------------------------------------------------------------------------
 echo.
 set /p "SRC_FILE=Enter backup filename in VMs\ (or full path, or blank to cancel): "
+call :TRIM SRC_FILE
 if "%SRC_FILE%"=="" goto MAIN_MENU
 
 :: Resolve file path
@@ -248,6 +253,7 @@ if not exist "%SRC_FILE%" (
 )
 
 set /p "CUSTOM_NAME=Enter custom Distribution Name (e.g. Ubuntu-rust, Debian-go): "
+call :TRIM CUSTOM_NAME
 if "%CUSTOM_NAME%"=="" (
     echo [ERROR] Distribution name cannot be empty.
     pause
@@ -306,15 +312,15 @@ cls
 echo ===============================================================================
 echo                      EXPORT / BACKUP WSL DISTRIBUTION                          
 echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
 echo.
-echo  Currently Installed Distributions:
-echo -------------------------------------------------------------------------------
-wsl.exe --list --verbose
-echo -------------------------------------------------------------------------------
-echo.
-set /p "EXP_NAME=Enter name of distribution to export (e.g. Ubuntu-rust, Debian-go, or blank to cancel): "
+set /p "EXP_INPUT=Select distribution [1-%DISTRO_COUNT%] or type name (or blank to cancel): "
+set "EXP_NAME=%EXP_INPUT%"
+call :RESOLVE_DISTRO_CHOICE EXP_NAME
 if "%EXP_NAME%"=="" goto MAIN_MENU
 
+echo.
+echo  Selected Distribution: %EXP_NAME%
 echo.
 echo  Export format:
 echo   [1] Standard Tarball (.tar)
@@ -332,6 +338,7 @@ if "%FMT_CHOICE%"=="2" (
 
 echo.
 set /p "CUSTOM_OUT=Destination file [%OUT_FILE%]: "
+call :TRIM CUSTOM_OUT
 if not "%CUSTOM_OUT%"=="" set "OUT_FILE=%CUSTOM_OUT%"
 
 echo.
@@ -370,13 +377,11 @@ cls
 echo ===============================================================================
 echo                    UNREGISTER / DELETE DISTRIBUTION                            
 echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
 echo.
-echo  Currently Installed Distributions:
-echo -------------------------------------------------------------------------------
-wsl.exe --list --verbose
-echo -------------------------------------------------------------------------------
-echo.
-set /p "UNREG_NAME=Enter name of distribution to unregister (e.g. Ubuntu-rust, or blank to cancel): "
+set /p "UNREG_INPUT=Select distribution [1-%DISTRO_COUNT%] or type name (or blank to cancel): "
+set "UNREG_NAME=%UNREG_INPUT%"
+call :RESOLVE_DISTRO_CHOICE UNREG_NAME
 if "%UNREG_NAME%"=="" goto MAIN_MENU
 
 echo.
@@ -386,6 +391,7 @@ echo           '%UNREG_NAME%' and delete its WSL registration!
 echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 echo.
 set /p "CONFIRM=Type 'YES' to confirm unregistering '%UNREG_NAME%': "
+call :TRIM CONFIRM
 if /i not "%CONFIRM%"=="YES" (
     echo.
     echo [*] Operation cancelled by user.
@@ -429,10 +435,11 @@ cls
 echo ===============================================================================
 echo                         LAUNCH WSL DISTRIBUTION                                
 echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
 echo.
-wsl.exe --list --verbose
-echo.
-set /p "RUN_NAME=Enter name of distribution to launch (e.g. Ubuntu-rust, or blank for default): "
+set /p "RUN_INPUT=Select distribution [1-%DISTRO_COUNT%] or type name (or blank for default): "
+set "RUN_NAME=%RUN_INPUT%"
+call :RESOLVE_DISTRO_CHOICE RUN_NAME
 
 if "%RUN_NAME%"=="" (
     echo [*] Launching default WSL distribution...
@@ -458,8 +465,6 @@ echo ===========================================================================
 echo                        STOP DISTRIBUTION / SHUTDOWN                            
 echo ===============================================================================
 echo.
-wsl.exe --list --verbose
-echo.
 echo   [1] Terminate specific distribution ^(wsl --terminate^)
 echo   [2] Shutdown entire WSL engine ^(wsl --shutdown^)
 echo   [0] Back to Main Menu
@@ -467,9 +472,12 @@ echo.
 set /p "STOP_CHOICE=Select option [0-2]: "
 
 if "%STOP_CHOICE%"=="1" (
+    call :SHOW_DISTRO_SELECTION
     echo.
-    set /p "TERM_NAME=Enter name of distribution to terminate (e.g. Ubuntu-rust): "
-    if not "!TERM_NAME!"=="" (
+    set /p "TERM_INPUT=Select distribution to terminate [1-%DISTRO_COUNT%] or type name: "
+    set "TERM_NAME=!TERM_INPUT!"
+    call :RESOLVE_DISTRO_CHOICE TERM_NAME
+    if defined TERM_NAME (
         wsl.exe --terminate "!TERM_NAME!"
         echo [*] '!TERM_NAME!' terminated.
     )
@@ -496,6 +504,7 @@ cls
 echo ===============================================================================
 echo                        OPTIMIZE / SHRINK VHDX DISK                             
 echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
 echo.
 echo  Found VHDX files in %VM_DIR%:
 echo -------------------------------------------------------------------------------
@@ -504,17 +513,19 @@ if %ERRORLEVEL% neq 0 echo   - No .vhdx files found in %VM_DIR%
 echo -------------------------------------------------------------------------------
 echo.
 echo Note: WSL must be shut down before optimizing the disk.
-set /p "VHDX_INPUT=Enter Distro Name (e.g. Ubuntu-rust) or path to ext4.vhdx (or blank to cancel): "
-if "%VHDX_INPUT%"=="" goto MAIN_MENU
+set /p "VHDX_INPUT=Select distribution [1-%DISTRO_COUNT%] or type Distro Name or path to ext4.vhdx: "
+set "RESOLVED_DISTRO=%VHDX_INPUT%"
+call :RESOLVE_DISTRO_CHOICE RESOLVED_DISTRO
+if "%RESOLVED_DISTRO%"=="" goto MAIN_MENU
 
-set "VHDX_PATH=%VHDX_INPUT%"
+set "VHDX_PATH=%RESOLVED_DISTRO%"
 if not exist "%VHDX_PATH%" (
-    if exist "%VM_DIR%\%VHDX_INPUT%\ext4.vhdx" (
-        set "VHDX_PATH=%VM_DIR%\%VHDX_INPUT%\ext4.vhdx"
-    ) else if exist "%VM_DIR%\%VHDX_INPUT%" (
-        set "VHDX_PATH=%VM_DIR%\%VHDX_INPUT%"
+    if exist "%VM_DIR%\%RESOLVED_DISTRO%\ext4.vhdx" (
+        set "VHDX_PATH=%VM_DIR%\%RESOLVED_DISTRO%\ext4.vhdx"
+    ) else if exist "%VM_DIR%\%RESOLVED_DISTRO%" (
+        set "VHDX_PATH=%VM_DIR%\%RESOLVED_DISTRO%"
     ) else (
-        echo [ERROR] File does not exist: %VHDX_INPUT%
+        echo [ERROR] File does not exist: %RESOLVED_DISTRO%
         pause
         goto MAIN_MENU
     )
@@ -543,19 +554,22 @@ cls
 echo ===============================================================================
 echo                       SET DEFAULT WSL DISTRIBUTION                             
 echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
 echo.
-wsl.exe --list --verbose
-echo.
-set /p "DEF_NAME=Enter name of distribution to set as default (e.g. Ubuntu-rust, or blank to cancel): "
+set /p "DEF_INPUT=Select distribution to set as default [1-%DISTRO_COUNT%] or type name (or blank to cancel): "
+set "DEF_NAME=%DEF_INPUT%"
+call :RESOLVE_DISTRO_CHOICE DEF_NAME
 if "%DEF_NAME%"=="" goto MAIN_MENU
 
-wsl.exe --set-default "%DEF_NAME%"
+echo.
+echo [*] Setting default distribution to '%DEF_NAME%'...
+wsl.exe -s "%DEF_NAME%"
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] Default distribution set to '%DEF_NAME%'.
 ) else (
     echo.
-    echo [ERROR] Failed to set default distribution.
+    echo [ERROR] Failed to set default distribution '%DEF_NAME%'.
 )
 
 echo.
@@ -571,3 +585,80 @@ goto MAIN_MENU
 cls
 echo Exiting WSL VM Manager. Goodbye!
 exit /b 0
+
+
+:: =============================================================================
+:: HELPER SUBROUTINES
+:: =============================================================================
+
+:TRIM
+:: Trims surrounding quotes and leading/trailing whitespace from variable named in %1
+if not defined %1 exit /b
+set "TMP_VAL=!%1!"
+set "TMP_VAL=!TMP_VAL:"=!"
+:TRIM_L
+if "!TMP_VAL:~0,1!"==" " (
+    set "TMP_VAL=!TMP_VAL:~1!"
+    goto TRIM_L
+)
+if "!TMP_VAL:~0,1!"=="	" (
+    set "TMP_VAL=!TMP_VAL:~1!"
+    goto TRIM_L
+)
+:TRIM_R
+if "!TMP_VAL:~-1!"==" " (
+    set "TMP_VAL=!TMP_VAL:~0,-1!"
+    goto TRIM_R
+)
+if "!TMP_VAL:~-1!"=="	" (
+    set "TMP_VAL=!TMP_VAL:~0,-1!"
+    goto TRIM_R
+)
+set "%1=!TMP_VAL!"
+exit /b
+
+
+:LOAD_DISTROS
+:: Resets and populates DISTRO_COUNT and DISTRO_1, DISTRO_2, etc.
+set "DISTRO_COUNT=0"
+for /f "usebackq delims=" %%D in (`powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; ((wsl.exe -l -q | Out-String) -replace [char]0, '').Split([Environment]::NewLine, [StringSplitOptions]::RemoveEmptyEntries)" 2^>nul`) do (
+    set "D_NAME=%%D"
+    call :TRIM D_NAME
+    if defined D_NAME (
+        set /a DISTRO_COUNT+=1
+        set "DISTRO_!DISTRO_COUNT!=!D_NAME!"
+    )
+)
+exit /b
+
+
+:SHOW_DISTRO_SELECTION
+call :LOAD_DISTROS
+echo.
+echo  Installed Distributions:
+echo -------------------------------------------------------------------------------
+if %DISTRO_COUNT% equ 0 (
+    echo   (No WSL distributions currently installed)
+) else (
+    for /l %%I in (1,1,%DISTRO_COUNT%) do (
+        echo   [%%I] !DISTRO_%%I!
+    )
+)
+echo -------------------------------------------------------------------------------
+exit /b
+
+
+:RESOLVE_DISTRO_CHOICE
+:: Input variable name in %1, resolves number choice or trimmed name back to %1
+call :TRIM %1
+set "IN_VAL=!%1!"
+if not defined IN_VAL exit /b
+if %DISTRO_COUNT% gtr 0 (
+    for /l %%I in (1,1,%DISTRO_COUNT%) do (
+        if "!IN_VAL!"=="%%I" (
+            set "%1=!DISTRO_%%I!"
+            exit /b
+        )
+    )
+)
+exit /b
