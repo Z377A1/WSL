@@ -18,5 +18,5 @@ appendWindowsPath = false
 #
 # To make the VS Code 'code' command available inside WSL:
 # Create /etc/profile.d/vscode.sh:
-# export PATH="$PATH:/mnt/c/Users/<your-windows-user>/AppData/Local/Programs/Microsoft VS Code/bin"
+# export PATH="/mnt/c/Users/<your-windows-user>/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"
 # ------------------------------------------------------------------------------

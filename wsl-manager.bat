@@ -671,15 +671,44 @@ exit /b 0
 :: =============================================================================
 
 :APPLY_DISTRO_CONFIG
-:: Configures /etc/wsl.conf and /etc/profile.d/vscode.sh for distro named in %1
+:: Configures /etc/wsl.conf, WSLInterop binfmt service, and /etc/profile.d/vscode.sh
 if not defined %1 exit /b
 set "TARGET_DISTRO=!%1!"
 echo [*] Applying system configuration to '!TARGET_DISTRO!'...
 echo     - Configuring /etc/wsl.conf (enabled = true, appendWindowsPath = false, systemd = true)...
-wsl.exe -d !TARGET_DISTRO! -u root -- bash -c "mkdir -p /etc && (grep -q '\[boot\]' /etc/wsl.conf 2>/dev/null || printf '[boot]\nsystemd=true\n\n' >> /etc/wsl.conf) && if grep -q '\[interop\]' /etc/wsl.conf 2>/dev/null; then grep -q 'enabled' /etc/wsl.conf || sed -i '/\[interop\]/a enabled = true' /etc/wsl.conf; grep -q 'appendWindowsPath' /etc/wsl.conf || sed -i '/\[interop\]/a appendWindowsPath = false' /etc/wsl.conf; else printf '[interop]\nenabled = true\nappendWindowsPath = false\n\n' >> /etc/wsl.conf; fi" >nul 2>&1
-
+echo     - Registering WSLInterop Windows PE binary format handler...
 echo     - Adding VS Code to Linux PATH (/etc/profile.d/vscode.sh)...
-wsl.exe -d !TARGET_DISTRO! -u root -- sh -c "mkdir -p /etc/profile.d && echo 'export PATH=\"$PATH:/mnt/c/Users/%USERNAME%/AppData/Local/Programs/Microsoft VS Code/bin\"' > /etc/profile.d/vscode.sh && chmod +x /etc/profile.d/vscode.sh" >nul 2>&1
+
+set "SETUP_SCRIPT=%TEMP%\setup_distro_%RANDOM%.sh"
+(
+    echo #!/bin/sh
+    echo WIN_USER="$1"
+    echo [ -z "$WIN_USER" ] ^&^& WIN_USER="%USERNAME%"
+    echo.
+    echo mkdir -p /etc
+    echo if [ ! -f /etc/wsl.conf ]; then
+    echo     printf '[boot]\nsystemd=true\n\n[interop]\nenabled = true\nappendWindowsPath = false\n' ^> /etc/wsl.conf
+    echo else
+    echo     grep -q '\[boot\]' /etc/wsl.conf 2^>/dev/null ^|^| printf '\n[boot]\nsystemd=true\n' ^>^> /etc/wsl.conf
+    echo     if grep -q '\[interop\]' /etc/wsl.conf 2^>/dev/null; then
+    echo         grep -q 'enabled' /etc/wsl.conf ^|^| sed -i '/\[interop\]/a enabled = true' /etc/wsl.conf
+    echo         grep -q 'appendWindowsPath' /etc/wsl.conf ^|^| sed -i '/\[interop\]/a appendWindowsPath = false' /etc/wsl.conf
+    echo     else
+    echo         printf '\n[interop]\nenabled = true\nappendWindowsPath = false\n' ^>^> /etc/wsl.conf
+    echo     fi
+    echo fi
+    echo.
+    echo mkdir -p /etc/systemd/system
+    echo printf '[Unit]\nDescription=Ensure WSL Windows PE binary interop\nDefaultDependencies=no\nAfter=systemd-binfmt.service proc-sys-fs-binfmt_misc.mount\nBefore=basic.target\n\n[Service]\nType=oneshot\nExecStart=/bin/sh -c "test -f /proc/sys/fs/binfmt_misc/WSLInterop || echo \x27:WSLInterop:M::MZ::/init:P\x27 > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true"\nRemainAfterExit=yes\n\n[Install]\nWantedBy=sysinit.target\n' ^> /etc/systemd/system/wsl-interop.service
+    echo systemctl enable wsl-interop.service 2^>/dev/null ^|^| true
+    echo.
+    echo mkdir -p /etc/profile.d
+    echo printf '#!/bin/sh\ntest -f /proc/sys/fs/binfmt_misc/WSLInterop || echo \x27:WSLInterop:M::MZ::/init:P\x27 > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true\nexport PATH="/mnt/c/Users/%%s/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"\n' "$WIN_USER" ^> /etc/profile.d/vscode.sh
+    echo chmod +x /etc/profile.d/vscode.sh
+) > "!SETUP_SCRIPT!"
+
+type "!SETUP_SCRIPT!" | wsl.exe -d !TARGET_DISTRO! -u root -- sh -c "tr -d '\r' | sh -s '%USERNAME%'" >nul 2>&1
+if exist "!SETUP_SCRIPT!" del "!SETUP_SCRIPT!" >nul 2>&1
 
 wsl.exe --terminate !TARGET_DISTRO! >nul 2>&1
 echo [SUCCESS] System and VS Code PATH configuration applied to '!TARGET_DISTRO!'.

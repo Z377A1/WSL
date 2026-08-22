@@ -134,7 +134,7 @@ When `appendWindowsPath = false` is active, inject VS Code CLI into Linux `$PATH
 
 ```bash
 # Inside WSL (or via wsl.exe -d <distro> -u root -- sh -c "...")
-echo 'export PATH="$PATH:/mnt/c/Users/<your-windows-username>/AppData/Local/Programs/Microsoft VS Code/bin"' > /etc/profile.d/vscode.sh
+echo 'export PATH="/mnt/c/Users/<your-windows-username>/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"' > /etc/profile.d/vscode.sh
 chmod +x /etc/profile.d/vscode.sh
 ```
 
