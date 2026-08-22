@@ -106,7 +106,10 @@ wsl --manage Ubuntu-rust --set-default-user <username>
 # enabled = true
 # appendWindowsPath = false
 
-# Inject /etc/wsl.conf from Windows host:
+# Run the complete configuration helper for any distribution:
+.\apply-config.ps1 -DistroName "Ubuntu-rust"
+
+# Or inject manually from Windows host:
 wsl -d Ubuntu-rust -u root -- bash -c "printf '[boot]\nsystemd=true\n\n[interop]\nenabled = true\nappendWindowsPath = false\n' > /etc/wsl.conf"
 
 # Add VS Code CLI ('code') to Linux PATH when appendWindowsPath is disabled:

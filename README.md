@@ -9,6 +9,7 @@ All VM virtual hard disks (`ext4.vhdx`), exports (`.tar`, `.tar.gz`), and `.wsl`
 ## ?? Repository Structure
 
 * **[wsl-manager.bat](file:///D:/Virtual%20Environments/WSL/wsl-manager.bat)**: Interactive Windows batch script for automated WSL availability checking, custom-named VM creation, imports, exports, selective stopping, disk optimization, and lifecycle operations inside `VMs\`.
+* **[apply-config.ps1](file:///D:/Virtual%20Environments/WSL/apply-config.ps1)**: Automation script to inject `/etc/wsl.conf`, persistent `wsl-interop.service`, and `/etc/profile.d/vscode.sh` into any distribution.
 * **[cheats.txt](file:///D:/Virtual%20Environments/WSL/cheats.txt)**: Fast command-line reference cheatsheet covering all WSL administration actions.
 * **[sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)**: Configuration template for `/etc/wsl.conf` (enabling systemd, default user, interop `enabled = true`, and disabling Windows PATH append).
 * **[du-excl-mnt.txt](file:///D:/Virtual%20Environments/WSL/du-excl-mnt.txt)**: Linux storage analysis command and output reference (excluding host `/mnt` mounts).
@@ -33,8 +34,8 @@ wsl-manager.bat
 ### Key Capabilities:
 1. **WSL Availability Pre-Check**: Checks if `wsl.exe` is installed and available in PATH; provides clear instructions if missing.
 2. **List Distributions**: Shows registered WSL distributions, versions, running states, plus folders and backup packages inside `VMs\`.
-3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, assigning a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`. Automatically configures `/etc/wsl.conf` with `[interop] enabled = true` and `appendWindowsPath = false`, plus injects VS Code CLI (`code`) to Linux PATH via `/etc/profile.d/vscode.sh`.
-4. **Import Distribution**: Detects `.tar`, `.tar.gz`, and `.vhdx` files inside `VMs\`, imports them as WSL 2 distributions under custom instance names into `VMs\<InstanceName>`, and sets up `/etc/wsl.conf` and VS Code PATH.
+3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, assigning a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`.
+4. **Import Distribution**: Detects `.tar`, `.tar.gz`, and `.vhdx` files inside `VMs\`, imports them as WSL 2 distributions under custom instance names into `VMs\<InstanceName>`.
 5. **Export Distribution**: Backs up any running or stopped distribution into `VMs\<InstanceName>.tar` or `VMs\<InstanceName>.vhdx` (via `--vhd`).
 6. **Unregister / Delete**: Safely unregisters distributions with explicit confirmation, and provides an option to clean up the associated directory in `VMs\`.
 7. **Selective Stop / Lifecycle**:
@@ -42,6 +43,8 @@ wsl-manager.bat
    * **Stop all running EXCEPT specified whitelist** (e.g. `Ubuntu-js,Ubuntu-go`), with `Ubuntu` and `docker-desktop` permanently protected from being terminated.
    * Full WSL engine shutdown (`wsl --shutdown`).
 8. **VHDX Disk Compacting**: Safely shuts down WSL and shrinks dynamically expanding `.vhdx` disks using `Optimize-VHD` or `diskpart` (with automated elevation and window closure), plus option to enable automatic Sparse VHD mode.
+9. **Set Default Distribution**: Switch your active default WSL distro cleanly.
+10. **Configure / Fix Interop & VS Code PATH**: Automatically configures `/etc/wsl.conf` with `[interop] enabled = true` & `appendWindowsPath = false`, registers `WSLInterop` PE binary support (`wsl-interop.service`), and sets up `/etc/profile.d/vscode.sh` so `code` works immediately.
 
 ---
 
@@ -59,7 +62,13 @@ wsl --install Debian --name Debian-go --location .\VMs\Debian-go
 wsl --install --from-file .\VMs\Ubuntu.wsl --name Ubuntu-rust --location .\VMs\Ubuntu-rust
 ```
 
-### 2. Export & Backup into `VMs\`
+### 2. Configure Distro Interop & VS Code CLI
+```powershell
+# Apply wsl.conf, interop service, and VS Code PATH to any distro
+.\apply-config.ps1 -DistroName "Ubuntu-rust"
+```
+
+### 3. Export & Backup into `VMs\`
 ```powershell
 # Export distribution to a tar archive
 wsl --export Ubuntu-rust .\VMs\Ubuntu-rust.tar
@@ -68,7 +77,7 @@ wsl --export Ubuntu-rust .\VMs\Ubuntu-rust.tar
 wsl --export Ubuntu-rust .\VMs\Ubuntu-rust.vhdx --vhd
 ```
 
-### 3. Import Distro into `VMs\`
+### 4. Import Distro into `VMs\`
 ```powershell
 # Import from a tarball archive as WSL 2
 wsl --import Ubuntu-rust .\VMs\Ubuntu-rust .\VMs\Ubuntu-rust.tar --version 2
@@ -80,19 +89,19 @@ wsl --import Ubuntu-rust .\VMs\Ubuntu-rust .\VMs\Ubuntu-rust.vhdx --vhd
 wsl --import-in-place Ubuntu-rust .\VMs\Ubuntu-rust\ext4.vhdx
 ```
 
-### 4. Selective Stop (Stop all except whitelist)
+### 5. Selective Stop (Stop all except whitelist)
 ```powershell
 # Stop all running distributions except Ubuntu-js and Ubuntu-go (protecting Ubuntu and docker-desktop)
 powershell -Command "$keep = @('Ubuntu-js','Ubuntu-go'); ((wsl -l --running -q | Out-String) -replace [char]0,'').Split([Environment]::NewLine,[StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and $_ -ne 'Ubuntu' -and $_ -ne 'docker-desktop' -and $keep -notcontains $_ } | ForEach-Object { wsl --terminate $_ }"
 ```
 
-### 5. Unregister / Delete Distribution
+### 6. Unregister / Delete Distribution
 ```powershell
 # Unregister distribution from WSL
 wsl --unregister Ubuntu-rust
 ```
 
-### 6. VHDX Disk Optimization (Shrinking Disk Size)
+### 7. VHDX Disk Optimization (Shrinking Disk Size)
 WSL `.vhdx` disks grow dynamically. To reclaim disk space after deleting files inside Linux:
 
 ```powershell
@@ -133,7 +142,7 @@ appendWindowsPath = false
 When `appendWindowsPath = false` is active, inject VS Code CLI into Linux `$PATH` via `/etc/profile.d/vscode.sh`:
 
 ```bash
-# Inside WSL (or via wsl.exe -d <distro> -u root -- sh -c "...")
+# Inside WSL (or via apply-config.ps1)
 echo 'export PATH="/mnt/c/Users/<your-windows-username>/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"' > /etc/profile.d/vscode.sh
 chmod +x /etc/profile.d/vscode.sh
 ```

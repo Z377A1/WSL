@@ -58,10 +58,11 @@ echo   [6] Launch / Run Distribution
 echo   [7] Stop Distribution / Selective Stop / Shutdown
 echo   [8] Optimize / Shrink VHDX Disk
 echo   [9] Set Default Distribution
+echo  [10] Configure / Fix Interop ^& VS Code PATH for a Distribution
 echo   [0] Exit
 echo.
 echo ===============================================================================
-set /p "CHOICE=Select an option [0-9]: "
+set /p "CHOICE=Select an option [0-10]: "
 
 if "!CHOICE!"=="1" goto LIST_DISTROS
 if "!CHOICE!"=="2" goto INSTALL_DISTRO
@@ -72,10 +73,11 @@ if "!CHOICE!"=="6" goto LAUNCH_DISTRO
 if "!CHOICE!"=="7" goto STOP_DISTRO
 if "!CHOICE!"=="8" goto OPTIMIZE_DISK
 if "!CHOICE!"=="9" goto SET_DEFAULT
+if "!CHOICE!"=="10" goto FIX_DISTRO_CONFIG
 if "!CHOICE!"=="0" goto EXIT_SCRIPT
 
 echo.
-echo [*] Invalid selection. Please choose an option between 0 and 9.
+echo [*] Invalid selection. Please choose an option between 0 and 10.
 ping 127.0.0.1 -n 2 >nul
 goto MAIN_MENU
 
@@ -161,6 +163,7 @@ if %ERRORLEVEL% equ 0 (
     echo.
     echo [*] Attempting standard install: wsl.exe --install -d !BASE_DISTRO!
     wsl.exe --install -d !BASE_DISTRO!
+    call :APPLY_DISTRO_CONFIG BASE_DISTRO
 )
 
 echo.
@@ -658,6 +661,30 @@ goto MAIN_MENU
 
 
 :: -----------------------------------------------------------------------------
+:: 10. CONFIGURE / FIX INTEROP & VS CODE PATH
+:: -----------------------------------------------------------------------------
+:FIX_DISTRO_CONFIG
+cls
+echo ===============================================================================
+echo              CONFIGURE / FIX INTEROP ^& VS CODE PATH FOR DISTRO                
+echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
+echo.
+set /p "FIX_INPUT=Select distribution to configure [1-!DISTRO_COUNT!] or type name (or blank to cancel): "
+set "FIX_NAME=!FIX_INPUT!"
+call :RESOLVE_DISTRO_CHOICE FIX_NAME
+if "!FIX_NAME!"=="" goto MAIN_MENU
+
+echo.
+call :APPLY_DISTRO_CONFIG FIX_NAME
+
+echo.
+echo Press any key to return to menu...
+pause >nul
+goto MAIN_MENU
+
+
+:: -----------------------------------------------------------------------------
 :: 0. EXIT
 :: -----------------------------------------------------------------------------
 :EXIT_SCRIPT
@@ -674,44 +701,7 @@ exit /b 0
 :: Configures /etc/wsl.conf, WSLInterop binfmt service, and /etc/profile.d/vscode.sh
 if not defined %1 exit /b
 set "TARGET_DISTRO=!%1!"
-echo [*] Applying system configuration to '!TARGET_DISTRO!'...
-echo     - Configuring /etc/wsl.conf (enabled = true, appendWindowsPath = false, systemd = true)...
-echo     - Registering WSLInterop Windows PE binary format handler...
-echo     - Adding VS Code to Linux PATH (/etc/profile.d/vscode.sh)...
-
-set "SETUP_SCRIPT=%TEMP%\setup_distro_%RANDOM%.sh"
-(
-    echo #!/bin/sh
-    echo WIN_USER="$1"
-    echo [ -z "$WIN_USER" ] ^&^& WIN_USER="%USERNAME%"
-    echo.
-    echo mkdir -p /etc
-    echo if [ ! -f /etc/wsl.conf ]; then
-    echo     printf '[boot]\nsystemd=true\n\n[interop]\nenabled = true\nappendWindowsPath = false\n' ^> /etc/wsl.conf
-    echo else
-    echo     grep -q '\[boot\]' /etc/wsl.conf 2^>/dev/null ^|^| printf '\n[boot]\nsystemd=true\n' ^>^> /etc/wsl.conf
-    echo     if grep -q '\[interop\]' /etc/wsl.conf 2^>/dev/null; then
-    echo         grep -q 'enabled' /etc/wsl.conf ^|^| sed -i '/\[interop\]/a enabled = true' /etc/wsl.conf
-    echo         grep -q 'appendWindowsPath' /etc/wsl.conf ^|^| sed -i '/\[interop\]/a appendWindowsPath = false' /etc/wsl.conf
-    echo     else
-    echo         printf '\n[interop]\nenabled = true\nappendWindowsPath = false\n' ^>^> /etc/wsl.conf
-    echo     fi
-    echo fi
-    echo.
-    echo mkdir -p /etc/systemd/system
-    echo printf '[Unit]\nDescription=Ensure WSL Windows PE binary interop\nDefaultDependencies=no\nAfter=systemd-binfmt.service proc-sys-fs-binfmt_misc.mount\nBefore=basic.target\n\n[Service]\nType=oneshot\nExecStart=/bin/sh -c "test -f /proc/sys/fs/binfmt_misc/WSLInterop || echo \x27:WSLInterop:M::MZ::/init:P\x27 > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true"\nRemainAfterExit=yes\n\n[Install]\nWantedBy=sysinit.target\n' ^> /etc/systemd/system/wsl-interop.service
-    echo systemctl enable wsl-interop.service 2^>/dev/null ^|^| true
-    echo.
-    echo mkdir -p /etc/profile.d
-    echo printf '#!/bin/sh\ntest -f /proc/sys/fs/binfmt_misc/WSLInterop || echo \x27:WSLInterop:M::MZ::/init:P\x27 > /proc/sys/fs/binfmt_misc/register 2>/dev/null || true\nexport PATH="/mnt/c/Users/%%s/AppData/Local/Programs/Microsoft VS Code/bin:$PATH"\n' "$WIN_USER" ^> /etc/profile.d/vscode.sh
-    echo chmod +x /etc/profile.d/vscode.sh
-) > "!SETUP_SCRIPT!"
-
-type "!SETUP_SCRIPT!" | wsl.exe -d !TARGET_DISTRO! -u root -- sh -c "tr -d '\r' | sh -s '%USERNAME%'" >nul 2>&1
-if exist "!SETUP_SCRIPT!" del "!SETUP_SCRIPT!" >nul 2>&1
-
-wsl.exe --terminate !TARGET_DISTRO! >nul 2>&1
-echo [SUCCESS] System and VS Code PATH configuration applied to '!TARGET_DISTRO!'.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%apply-config.ps1" -DistroName "!TARGET_DISTRO!" -WinUser "%USERNAME%"
 exit /b
 
 
