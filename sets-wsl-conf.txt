@@ -4,3 +4,15 @@ systemd=true
 
 [user]
 default=<username>
+
+[interop]
+enabled=true
+appendWindowsPath = false
+
+# ------------------------------------------------------------------------------
+# NOTE: When appendWindowsPath is disabled, Windows host binaries are excluded
+# from Linux $PATH. To make VS Code 'code' command available inside WSL:
+#
+# Create /etc/profile.d/vscode.sh:
+# export PATH="$PATH:/mnt/c/Users/<user>/AppData/Local/Programs/Microsoft VS Code/bin"
+# ------------------------------------------------------------------------------

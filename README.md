@@ -6,15 +6,15 @@ All VM virtual hard disks (`ext4.vhdx`), exports (`.tar`, `.tar.gz`), and `.wsl`
 
 ---
 
-## 📁 Repository Structure
+## ?? Repository Structure
 
-* **[wsl-manager.bat](file:///D:/Virtual%20Environments/WSL/wsl-manager.bat)**: Interactive Windows batch script for automated WSL availability checking, custom-named VM creation, imports, exports, disk optimization, and lifecycle operations inside `VMs\`.
+* **[wsl-manager.bat](file:///D:/Virtual%20Environments/WSL/wsl-manager.bat)**: Interactive Windows batch script for automated WSL availability checking, custom-named VM creation, imports, exports, selective stopping, disk optimization, and lifecycle operations inside `VMs\`.
 * **[cheats.txt](file:///D:/Virtual%20Environments/WSL/cheats.txt)**: Fast command-line reference cheatsheet covering all WSL administration actions.
-* **[sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)**: Configuration template for `/etc/wsl.conf` (enabling systemd, configuring default user).
+* **[sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)**: Configuration template for `/etc/wsl.conf` (enabling systemd, configuring default user, disabling Windows PATH append, and adding VS Code PATH).
 * **[du-excl-mnt.txt](file:///D:/Virtual%20Environments/WSL/du-excl-mnt.txt)**: Linux storage analysis command and output reference (excluding host `/mnt` mounts).
 * **[VMs/](file:///D:/Virtual%20Environments/WSL/VMs)**: Root directory where all custom WSL instances and backup images reside.
 
-### 🔒 Git Ignored Local Assets
+### ?? Git Ignored Local Assets
 Heavy virtual disks, backups, and machine binaries are excluded via [.gitignore](file:///D:/Virtual%20Environments/WSL/.gitignore):
 * `VMs/*` (excluding `.gitkeep`) - All local virtual machines, disk images (`.vhdx`), and backup archives (`.tar`, `.tar.gz`, `.zip`, `.7z`).
 * `*.wsl` - WSL package files.
@@ -22,7 +22,7 @@ Heavy virtual disks, backups, and machine binaries are excluded via [.gitignore]
 
 ---
 
-## ⚡ Interactive Batch Manager (`wsl-manager.bat`)
+## ? Interactive Batch Manager (`wsl-manager.bat`)
 
 The repository includes a batch utility [wsl-manager.bat](file:///D:/Virtual%20Environments/WSL/wsl-manager.bat). Simply double-click or run from CMD / PowerShell:
 
@@ -33,16 +33,19 @@ wsl-manager.bat
 ### Key Capabilities:
 1. **WSL Availability Pre-Check**: Checks if `wsl.exe` is installed and available in PATH; provides clear instructions if missing.
 2. **List Distributions**: Shows registered WSL distributions, versions, running states, plus folders and backup packages inside `VMs\`.
-3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, allowing you to assign a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`.
-4. **Import Distribution**: Detects `.tar`, `.tar.gz`, and `.vhdx` files inside `VMs\`, imports them as WSL 2 distributions under custom instance names into `VMs\<InstanceName>`.
+3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, assigning a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`. Automatically configures `/etc/wsl.conf` with `[interop] appendWindowsPath = false` and adds VS Code CLI (`code`) to Linux PATH via `/etc/profile.d/vscode.sh`.
+4. **Import Distribution**: Detects `.tar`, `.tar.gz`, and `.vhdx` files inside `VMs\`, imports them as WSL 2 distributions under custom instance names into `VMs\<InstanceName>`, and sets up `/etc/wsl.conf` and VS Code PATH.
 5. **Export Distribution**: Backs up any running or stopped distribution into `VMs\<InstanceName>.tar` or `VMs\<InstanceName>.vhdx` (via `--vhd`).
 6. **Unregister / Delete**: Safely unregisters distributions with explicit confirmation, and provides an option to clean up the associated directory in `VMs\`.
-7. **Lifecycle Management**: Start, terminate, or shut down WSL distributions.
-8. **VHDX Disk Compacting**: Safely shuts down WSL and shrinks dynamically expanding `.vhdx` disks using `Optimize-VHD` or `diskpart`.
+7. **Selective Stop / Lifecycle**:
+   * Terminate specific distributions.
+   * **Stop all running EXCEPT specified whitelist** (e.g. `Ubuntu-js,Ubuntu-go`), with `Ubuntu` and `docker-desktop` permanently protected from being terminated.
+   * Full WSL engine shutdown (`wsl --shutdown`).
+8. **VHDX Disk Compacting**: Safely shuts down WSL and shrinks dynamically expanding `.vhdx` disks using `Optimize-VHD` or `diskpart` (with automated elevation and window closure), plus option to enable automatic Sparse VHD mode.
 
 ---
 
-## 🚀 CLI Administration Cheatsheet
+## ?? CLI Administration Cheatsheet
 
 For manual administration, refer to the workflows below:
 
@@ -77,13 +80,19 @@ wsl --import Ubuntu-rust .\VMs\Ubuntu-rust .\VMs\Ubuntu-rust.vhdx --vhd
 wsl --import-in-place Ubuntu-rust .\VMs\Ubuntu-rust\ext4.vhdx
 ```
 
-### 4. Unregister / Delete Distribution
+### 4. Selective Stop (Stop all except whitelist)
+```powershell
+# Stop all running distributions except Ubuntu-js and Ubuntu-go (protecting Ubuntu and docker-desktop)
+powershell -Command "$keep = @('Ubuntu-js','Ubuntu-go'); ((wsl -l --running -q | Out-String) -replace [char]0,'').Split([Environment]::NewLine,[StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and $_ -ne 'Ubuntu' -and $_ -ne 'docker-desktop' -and $keep -notcontains $_ } | ForEach-Object { wsl --terminate $_ }"
+```
+
+### 5. Unregister / Delete Distribution
 ```powershell
 # Unregister distribution from WSL
 wsl --unregister Ubuntu-rust
 ```
 
-### 5. VHDX Disk Optimization (Shrinking Disk Size)
+### 6. VHDX Disk Optimization (Shrinking Disk Size)
 WSL `.vhdx` disks grow dynamically. To reclaim disk space after deleting files inside Linux:
 
 ```powershell
@@ -99,17 +108,30 @@ Optimize-VHD -Path .\VMs\Ubuntu-rust\ext4.vhdx -Mode Full
 
 ---
 
-## ⚙️ Configuration Presets
+## ?? Configuration Presets
 
-### Setting Default User (`/etc/wsl.conf`)
-When importing a rootfs or distro from scratch, set `systemd` and your default user in `/etc/wsl.conf` ([sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)):
+### WSL System Settings (`/etc/wsl.conf`) & VS Code PATH
+When importing or setting up a distro from scratch, configure `/etc/wsl.conf` ([sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)):
 
 ```ini
+# /etc/wsl.conf
 [boot]
 systemd=true
 
 [user]
 default=<username>
+
+[interop]
+appendWindowsPath = false
+```
+
+#### Making VS Code (`code`) accessible inside WSL
+When `appendWindowsPath = false` is active, inject VS Code CLI into Linux `$PATH` via `/etc/profile.d/vscode.sh`:
+
+```bash
+# Inside WSL (or via wsl.exe -d <distro> -u root -- sh -c "...")
+echo 'export PATH="$PATH:/mnt/c/Users/<your-windows-username>/AppData/Local/Programs/Microsoft VS Code/bin"' > /etc/profile.d/vscode.sh
+chmod +x /etc/profile.d/vscode.sh
 ```
 
 Or set the default user directly via WSL CLI:
@@ -125,7 +147,7 @@ sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
 
 ---
 
-## 🔍 Registered VM Path Query
+## ?? Registered VM Path Query
 
 To find the exact registry and physical disk paths of all installed WSL distros:
 

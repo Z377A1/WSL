@@ -55,7 +55,7 @@ echo   [3] Import Distribution (.tar / .tar.gz / .vhdx into VMs\)
 echo   [4] Export Distribution (Backup distro into VMs\)
 echo   [5] Unregister / Delete Distribution
 echo   [6] Launch / Run Distribution
-echo   [7] Stop Distribution / Shutdown WSL
+echo   [7] Stop Distribution / Selective Stop / Shutdown
 echo   [8] Optimize / Shrink VHDX Disk
 echo   [9] Set Default Distribution
 echo   [0] Exit
@@ -156,6 +156,7 @@ wsl.exe --install !BASE_DISTRO! --name !CUSTOM_NAME! --location "!TARGET_LOC!"
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] Distribution '!CUSTOM_NAME!' installed successfully in !TARGET_LOC!!
+    call :APPLY_DISTRO_CONFIG CUSTOM_NAME
 ) else (
     echo.
     echo [*] Attempting standard install: wsl.exe --install -d !BASE_DISTRO!
@@ -210,6 +211,7 @@ wsl.exe --install --from-file "!WSL_FILE!" --name !CUSTOM_NAME! --location "!TAR
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] Distribution '!CUSTOM_NAME!' installed successfully into !TARGET_LOC!!
+    call :APPLY_DISTRO_CONFIG CUSTOM_NAME
 ) else (
     echo.
     echo [ERROR] Installation failed.
@@ -287,6 +289,7 @@ if %ERRORLEVEL% equ 0 (
     echo ===============================================================================
     echo [SUCCESS] '!CUSTOM_NAME!' imported successfully!
     echo Location: !TARGET_DIR!
+    call :APPLY_DISTRO_CONFIG CUSTOM_NAME
     echo.
     echo Tip: If you need to set default user, configure /etc/wsl.conf inside the distro:
     echo   [user]
@@ -465,30 +468,78 @@ echo                        STOP DISTRIBUTION / SHUTDOWN
 echo ===============================================================================
 echo.
 echo   [1] Terminate specific distribution (wsl --terminate)
-echo   [2] Shutdown entire WSL engine (wsl --shutdown)
+echo   [2] Stop all running EXCEPT specified whitelist (e.g. Ubuntu-js,Ubuntu-go)
+echo   [3] Shutdown entire WSL engine (wsl --shutdown)
 echo   [0] Back to Main Menu
 echo.
-set /p "STOP_CHOICE=Select option [0-2]: "
+set /p "STOP_CHOICE=Select option [0-3]: "
 
-if "!STOP_CHOICE!"=="1" (
-    call :SHOW_DISTRO_SELECTION
-    echo.
-    set /p "TERM_INPUT=Select distribution to terminate [1-!DISTRO_COUNT!] or type name: "
-    set "TERM_NAME=!TERM_INPUT!"
-    call :RESOLVE_DISTRO_CHOICE TERM_NAME
-    if defined TERM_NAME (
-        wsl.exe --terminate !TERM_NAME!
-        echo [*] '!TERM_NAME!' terminated.
-    )
-)
-if "!STOP_CHOICE!"=="2" (
-    echo.
-    echo [*] Shutting down all WSL instances...
-    wsl.exe --shutdown
-    echo [*] WSL shutdown complete.
-)
+if "!STOP_CHOICE!"=="1" goto STOP_SINGLE
+if "!STOP_CHOICE!"=="2" goto STOP_SELECTIVE
+if "!STOP_CHOICE!"=="3" goto STOP_ALL_SHUTDOWN
 if "!STOP_CHOICE!"=="0" goto MAIN_MENU
+goto STOP_DISTRO
 
+:STOP_SINGLE
+cls
+echo ===============================================================================
+echo                       TERMINATE SPECIFIC DISTRIBUTION                          
+echo ===============================================================================
+call :SHOW_DISTRO_SELECTION
+echo.
+set /p "TERM_INPUT=Select distribution to terminate [1-!DISTRO_COUNT!] or type name: "
+set "TERM_NAME=!TERM_INPUT!"
+call :RESOLVE_DISTRO_CHOICE TERM_NAME
+if defined TERM_NAME (
+    wsl.exe --terminate !TERM_NAME!
+    echo [*] '!TERM_NAME!' terminated.
+)
+echo.
+echo Press any key to return to menu...
+pause >nul
+goto MAIN_MENU
+
+:STOP_SELECTIVE
+cls
+echo ===============================================================================
+echo            STOP ALL RUNNING DISTRIBUTIONS EXCEPT SPECIFIED
+echo ===============================================================================
+echo  Note: 'Ubuntu' and 'docker-desktop' are protected and will never be stopped.
+echo -------------------------------------------------------------------------------
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$running = ((wsl.exe -l --running -q | Out-String) -replace [char]0, '').Split([Environment]::NewLine, [StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and $_ -ne 'Ubuntu' -and $_ -ne 'docker-desktop' };" ^
+    "if (-not $running -or $running.Count -eq 0) {" ^
+    "    Write-Host ' (No other user distributions are currently running)' -ForegroundColor Yellow;" ^
+    "    exit 0;" ^
+    "}" ^
+    "Write-Host 'Currently running eligible distributions:' -ForegroundColor Cyan;" ^
+    "foreach ($d in $running) { Write-Host \"  - $d\" };" ^
+    "Write-Host '';" ^
+    "$inputKeep = Read-Host 'Enter distributions to KEEP running (comma-separated, e.g. Ubuntu-js,Ubuntu-go, or press Enter to stop all)';" ^
+    "$keepList = ($inputKeep -split '[,;]+') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' };" ^
+    "Write-Host '';" ^
+    "$stoppedCount = 0;" ^
+    "foreach ($distro in $running) {" ^
+    "    if ($keepList -contains $distro) {" ^
+    "        Write-Host \"[*] KEEPING: '$distro' is in whitelist, leaving active.\" -ForegroundColor Green;" ^
+    "    } else {" ^
+    "        Write-Host \"[*] STOPPING: Terminating '$distro'...\" -ForegroundColor Yellow;" ^
+    "        wsl.exe --terminate $distro;" ^
+    "        $stoppedCount++;" ^
+    "    }" ^
+    "};" ^
+    "Write-Host '';" ^
+    "Write-Host \"[SUCCESS] Selective stop complete. ($stoppedCount distribution(s) terminated)\" -ForegroundColor Green;"
+echo.
+echo Press any key to return to menu...
+pause >nul
+goto MAIN_MENU
+
+:STOP_ALL_SHUTDOWN
+echo.
+echo [*] Shutting down all WSL instances...
+wsl.exe --shutdown
+echo [*] WSL shutdown complete.
 echo.
 echo Press any key to return to menu...
 pause >nul
@@ -618,6 +669,22 @@ exit /b 0
 :: =============================================================================
 :: HELPER SUBROUTINES
 :: =============================================================================
+
+:APPLY_DISTRO_CONFIG
+:: Configures /etc/wsl.conf and /etc/profile.d/vscode.sh for distro named in %1
+if not defined %1 exit /b
+set "TARGET_DISTRO=!%1!"
+echo [*] Applying system configuration to '!TARGET_DISTRO!'...
+echo     - Configuring /etc/wsl.conf (appendWindowsPath = false, systemd = true)...
+wsl.exe -d !TARGET_DISTRO! -u root -- bash -c "mkdir -p /etc && (grep -q '\[boot\]' /etc/wsl.conf 2>/dev/null || printf '[boot]\nsystemd=true\n\n' >> /etc/wsl.conf) && (grep -q '\[interop\]' /etc/wsl.conf 2>/dev/null || printf '[interop]\nappendWindowsPath = false\n\n' >> /etc/wsl.conf)" >nul 2>&1
+
+echo     - Adding VS Code to Linux PATH (/etc/profile.d/vscode.sh)...
+wsl.exe -d !TARGET_DISTRO! -u root -- sh -c "mkdir -p /etc/profile.d && echo 'export PATH=\"$PATH:/mnt/c/Users/%USERNAME%/AppData/Local/Programs/Microsoft VS Code/bin\"' > /etc/profile.d/vscode.sh && chmod +x /etc/profile.d/vscode.sh" >nul 2>&1
+
+wsl.exe --terminate !TARGET_DISTRO! >nul 2>&1
+echo [SUCCESS] System and VS Code PATH configuration applied to '!TARGET_DISTRO!'.
+exit /b
+
 
 :TRIM
 :: Trims surrounding quotes and leading/trailing whitespace from variable named in %1

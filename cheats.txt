@@ -16,6 +16,9 @@
 wsl -l -v
 wsl --list --verbose
 
+# Check only running distributions
+wsl -l --running -v
+
 # Check available online distributions
 wsl --list --online
 
@@ -70,9 +73,13 @@ wsl -d Debian-go
 # Launch as a specific user
 wsl -d Ubuntu-rust -u <username>
 
-# Terminate a running distribution
+# Terminate a specific running distribution
 wsl -t Ubuntu-rust
 wsl --terminate Debian-go
+
+# Stop all running distros EXCEPT specified whitelist (protects Ubuntu & docker-desktop)
+# PowerShell one-liner:
+powershell -Command "$keep = @('Ubuntu-js','Ubuntu-go'); ((wsl -l --running -q | Out-String) -replace [char]0,'').Split([Environment]::NewLine,[StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' -and $_ -ne 'Ubuntu' -and $_ -ne 'docker-desktop' -and $keep -notcontains $_ } | ForEach-Object { wsl --terminate $_ }"
 
 # Shutdown all running WSL distributions
 wsl --shutdown
@@ -86,7 +93,27 @@ wsl --manage Ubuntu-rust --set-default-user <username>
 
 
 # ------------------------------------------------------------------------------
-# 6. Unregistering / Deleting a Distribution
+# 6. WSL Configuration (/etc/wsl.conf & VS Code PATH)
+# ------------------------------------------------------------------------------
+# Recommended /etc/wsl.conf settings inside your distro:
+# [boot]
+# systemd=true
+#
+# [user]
+# default=<username>
+#
+# [interop]
+# appendWindowsPath = false
+
+# Inject /etc/wsl.conf from Windows host:
+wsl -d Ubuntu-rust -u root -- bash -c "printf '[boot]\nsystemd=true\n\n[interop]\nappendWindowsPath = false\n' > /etc/wsl.conf"
+
+# Add VS Code CLI ('code') to Linux PATH when appendWindowsPath is disabled:
+wsl -d Ubuntu-rust -u root -- sh -c "echo 'export PATH=\"$PATH:/mnt/c/Users/%USERNAME%/AppData/Local/Programs/Microsoft VS Code/bin\"' > /etc/profile.d/vscode.sh && chmod +x /etc/profile.d/vscode.sh"
+
+
+# ------------------------------------------------------------------------------
+# 7. Unregistering / Deleting a Distribution
 # ------------------------------------------------------------------------------
 # WARNING: Permanently deletes distro registration and internal filesystem
 wsl --unregister Ubuntu-rust
@@ -97,7 +124,7 @@ wsl --unregister Debian-go
 
 
 # ------------------------------------------------------------------------------
-# 7. VHDX Disk Optimization & Compacting (Shrink Disk Size)
+# 8. VHDX Disk Optimization & Compacting (Shrink Disk Size)
 # ------------------------------------------------------------------------------
 # Step 1: Terminate WSL instance before optimizing
 wsl --terminate Ubuntu-rust
@@ -113,20 +140,21 @@ Optimize-VHD -Path .\VMs\Ubuntu-rust\ext4.vhdx -Mode Full
 # attach vdisk readonly
 # compact vdisk
 # detach vdisk
+# exit
 
 # Step 2c: Enable sparse VHD in modern WSL (Automatic disk reclaiming)
 wsl --manage Ubuntu-rust --set-sparse true
 
 
 # ------------------------------------------------------------------------------
-# 8. Storage Analysis (Run inside Linux instance)
+# 9. Storage Analysis (Run inside Linux instance)
 # ------------------------------------------------------------------------------
 # Inspect disk usage breakdown excluding host /mnt mounts
 sudo du -h --max-depth=1 --exclude=/mnt / | sort -h
 
 
 # ------------------------------------------------------------------------------
-# 9. Get Exact Registered BasePath of Distros (PowerShell)
+# 10. Get Exact Registered BasePath of Distros (PowerShell)
 # ------------------------------------------------------------------------------
 Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss\*" | 
     Select-Object DistributionName, BasePath
