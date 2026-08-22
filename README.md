@@ -10,7 +10,7 @@ All VM virtual hard disks (`ext4.vhdx`), exports (`.tar`, `.tar.gz`), and `.wsl`
 
 * **[wsl-manager.bat](file:///D:/Virtual%20Environments/WSL/wsl-manager.bat)**: Interactive Windows batch script for automated WSL availability checking, custom-named VM creation, imports, exports, selective stopping, disk optimization, and lifecycle operations inside `VMs\`.
 * **[cheats.txt](file:///D:/Virtual%20Environments/WSL/cheats.txt)**: Fast command-line reference cheatsheet covering all WSL administration actions.
-* **[sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)**: Configuration template for `/etc/wsl.conf` (enabling systemd, configuring default user, disabling Windows PATH append, and adding VS Code PATH).
+* **[sets-wsl-conf.txt](file:///D:/Virtual%20Environments/WSL/sets-wsl-conf.txt)**: Configuration template for `/etc/wsl.conf` (enabling systemd, default user, interop `enabled = true`, and disabling Windows PATH append).
 * **[du-excl-mnt.txt](file:///D:/Virtual%20Environments/WSL/du-excl-mnt.txt)**: Linux storage analysis command and output reference (excluding host `/mnt` mounts).
 * **[VMs/](file:///D:/Virtual%20Environments/WSL/VMs)**: Root directory where all custom WSL instances and backup images reside.
 
@@ -33,7 +33,7 @@ wsl-manager.bat
 ### Key Capabilities:
 1. **WSL Availability Pre-Check**: Checks if `wsl.exe` is installed and available in PATH; provides clear instructions if missing.
 2. **List Distributions**: Shows registered WSL distributions, versions, running states, plus folders and backup packages inside `VMs\`.
-3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, assigning a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`. Automatically configures `/etc/wsl.conf` with `[interop] appendWindowsPath = false` and adds VS Code CLI (`code`) to Linux PATH via `/etc/profile.d/vscode.sh`.
+3. **Install Distribution**: Install from online repositories (e.g. `Ubuntu-24.04`, `Debian`, `kali-linux`) or from a `.wsl` file, assigning a custom instance name (e.g., `Ubuntu-rust`, `Debian-go`) and saving the instance directly into `VMs\<InstanceName>`. Automatically configures `/etc/wsl.conf` with `[interop] enabled = true` and `appendWindowsPath = false`, plus injects VS Code CLI (`code`) to Linux PATH via `/etc/profile.d/vscode.sh`.
 4. **Import Distribution**: Detects `.tar`, `.tar.gz`, and `.vhdx` files inside `VMs\`, imports them as WSL 2 distributions under custom instance names into `VMs\<InstanceName>`, and sets up `/etc/wsl.conf` and VS Code PATH.
 5. **Export Distribution**: Backs up any running or stopped distribution into `VMs\<InstanceName>.tar` or `VMs\<InstanceName>.vhdx` (via `--vhd`).
 6. **Unregister / Delete**: Safely unregisters distributions with explicit confirmation, and provides an option to clean up the associated directory in `VMs\`.
@@ -122,8 +122,12 @@ systemd=true
 default=<username>
 
 [interop]
+enabled = true
 appendWindowsPath = false
 ```
+
+* `enabled = true` ensures WSL's binary translation (`binfmt_misc`) executes Windows `.exe` binaries (like `Code.exe`) without `Exec format error`.
+* `appendWindowsPath = false` keeps Linux `$PATH` clean and fast, avoiding path pollution from the host.
 
 #### Making VS Code (`code`) accessible inside WSL
 When `appendWindowsPath = false` is active, inject VS Code CLI into Linux `$PATH` via `/etc/profile.d/vscode.sh`:
