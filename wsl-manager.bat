@@ -155,15 +155,22 @@ echo.
 echo [*] Installing '!CUSTOM_NAME!' (Base: !BASE_DISTRO!) into '!TARGET_LOC!'...
 wsl.exe --install !BASE_DISTRO! --name !CUSTOM_NAME! --location "!TARGET_LOC!"
 
-if %ERRORLEVEL% equ 0 (
+:: Verify if the distribution was created and registered
+call :LOAD_DISTROS
+set "FOUND_NEW_DISTRO=0"
+for /l %%I in (1,1,!DISTRO_COUNT!) do (
+    if /i "!DISTRO_%%I!"=="!CUSTOM_NAME!" set "FOUND_NEW_DISTRO=1"
+)
+
+if "!FOUND_NEW_DISTRO!"=="1" (
     echo.
+    echo ===============================================================================
     echo [SUCCESS] Distribution '!CUSTOM_NAME!' installed successfully in !TARGET_LOC!!
+    echo ===============================================================================
     call :APPLY_DISTRO_CONFIG CUSTOM_NAME
 ) else (
     echo.
-    echo [*] Attempting standard install: wsl.exe --install -d !BASE_DISTRO!
-    wsl.exe --install -d !BASE_DISTRO!
-    call :APPLY_DISTRO_CONFIG BASE_DISTRO
+    echo [ERROR] Installation of '!CUSTOM_NAME!' failed or was cancelled.
 )
 
 echo.
@@ -211,13 +218,22 @@ echo.
 echo [*] Installing '!CUSTOM_NAME!' from '!WSL_FILE!' into '!TARGET_LOC!'...
 wsl.exe --install --from-file "!WSL_FILE!" --name !CUSTOM_NAME! --location "!TARGET_LOC!"
 
-if %ERRORLEVEL% equ 0 (
+:: Verify if the distribution was created and registered
+call :LOAD_DISTROS
+set "FOUND_NEW_DISTRO=0"
+for /l %%I in (1,1,!DISTRO_COUNT!) do (
+    if /i "!DISTRO_%%I!"=="!CUSTOM_NAME!" set "FOUND_NEW_DISTRO=1"
+)
+
+if "!FOUND_NEW_DISTRO!"=="1" (
     echo.
+    echo ===============================================================================
     echo [SUCCESS] Distribution '!CUSTOM_NAME!' installed successfully into !TARGET_LOC!!
+    echo ===============================================================================
     call :APPLY_DISTRO_CONFIG CUSTOM_NAME
 ) else (
     echo.
-    echo [ERROR] Installation failed.
+    echo [ERROR] Installation of '!CUSTOM_NAME!' failed or was cancelled.
 )
 echo.
 echo Press any key to return to menu...
